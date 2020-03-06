@@ -9,20 +9,90 @@
           content="7UY7VcXR28Tpmw6m6fc6wtJJQvar71GKqGojp3HPb4Q"/>
     <title>Morpheus</title>
     <link rel="stylesheet" href="css/morpheus-latest.min.css">
+	<!-- by CY -->
+	<!-- <script src="/libs/neo4j-driver/lib/browser/neo4j-web.min.js"></script> -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.2.3/cytoscape.min.js"></script>
+
     <script type="text/javascript"
             src="https://apis.google.com/js/api.js"></script>
     <script type="text/javascript" src="js/morpheus-external-latest.min.js"></script>
-    <script src="js/morpheus-latest.min.js"></script>
+    <!-- by CY <script src="js/morpheus-latest.min.js"></script>-->
+	<script src="js/morpheus.js"></script>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <script type="text/javascript"
             src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs"
             data-app-key="6xq3zgeoago5fhw"></script>
 
+<style>
+<!-- by CY -->
+<!--#loading_icon_div {
+	position: absolute;
+	left: 0;
+	top: 45%;
+	width: 100%;
+	text-align: center;
+	margin-top: -0.5em;
+	font-size: 2em;
+}-->
+
+.sidenav {
+    height: 100%;
+    width: 0;
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    background-color: #111;
+    overflow-x: hidden;
+    transition: 0.25s;
+    padding-top: 30px;
+	line-height: 25px;
+}
+
+.sidenav a {
+    padding: 8px 8px 8px 16px;
+    text-decoration: none;
+    font-size: 25px;
+    color: #818181;
+    display: block;
+    transition: 0.3s;
+}
+
+.sidenav a:hover {
+    color: #f1f1f1;
+}
+
+.sidenav .closebtn {
+    position: absolute;
+    top: 0;
+    right: 5px;
+    font-size: 36px;
+    margin-left: 50px;
+}
+
+.sidenav .savebtn {
+	cursor: pointer;
+}
+
+<!--
+@media screen and (max-height: 450px) {
+  .sidenav {padding-top: 5px;}
+  .sidenav a {font-size: 18px;}
+}-->
+
+</style>
 </head>
 <body>
 <noscript>
     <p>Please enable JavaScript</p>
 </noscript>
+<!-- by CY -->
+<div class="modal fade" id="loading-modal" data-backdrop="static" data-keyboard="false">
+	<div id="loading_icon_div" style="position:absolute;left:0;top:45%;width:100%;text-align:center;margin-top:-0.5em;font-size:2em">
+		<span class="fa fa-spinner fa-pulse fa-3x"></span>
+	</div>
+</div>
+
 <div id="vis"></div>
 
 <script type="text/javascript">
@@ -78,7 +148,6 @@
     navigator.serviceWorker
     .register('sw.js');
   }
-
 </script>
 </body>
 

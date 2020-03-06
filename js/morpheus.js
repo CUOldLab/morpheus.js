@@ -1,5 +1,35 @@
 (function(global){
 'use strict';
+
+/*
+ * by CY, 2017/08/16
+ */
+// Default selected drug
+var selectedDrug = "CBD";
+// Default selected drug
+var selectedRelationship = "COSINE|ANTICOSINE";
+/*
+ * STRING relationships must be equal to or greater than this score.
+ * 0-1000
+ */
+var minSTRINGScore = 700;
+/*
+ * Maximum number of hops to reach one node to another.
+ */
+var maximumHops = 5; 
+/*
+ * Web service URLs
+ */
+var STRING_WEB_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/stringgraph/service";
+var PHOSPHO_WEB_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/phosphograph/service";
+var NEO4J_WEB_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/neo4jgraph/service";
+var NEO4J_DRUG_NAME_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/neo4jgraph/getDrugNames";
+var UNIPROT_TO_GENE_WEB_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/uniprot_service/id2gn";
+var UNIPROT_TO_ACCESSION_WEB_SERVICE = "http://bluemoon.colorado.edu:8080/JNetworkFinder/restservices/uniprot_service/id2acc";
+var REACTOME_ANALYSIS_WEB_SERVICE = "https://reactome.org/AnalysisService/identifiers";
+var REACTOME_PATHWAY_BROWSER = "http://www.reactome.org/PathwayBrowser/#DTAB=AN";
+var ENRICHR_ADD_LIST_SERVICE = "http://amp.pharm.mssm.edu/Enrichr/addList";
+
 /**
  * @name morpheus
  * @namespace
@@ -11718,7 +11748,7 @@ morpheus.SampleDatasets = function (options) {
       $button.prop('disabled', isDisabled);
     });
 
-  fetch('https://s3.amazonaws.com/data.clue.io/morpheus/tcga/tcga_index.txt').then(function (response) {
+  fetch('https://software.broadinstitute.org/morpheus/preloaded-datasets/tcga/tcga_index.txt').then(function (response) {
     if (response.ok) {
       return response.text();
     }
@@ -17769,6 +17799,122 @@ morpheus.ActionManager = function () {
     });
   }
 
+  // by CY: Show network
+  this.add({
+	  name: 'neo4j',
+	  cb: function (options) {
+			new morpheus.neo4jTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+	  }
+  });
+  
+  this.add({
+	  name: 'STRING DB',
+	  cb: function (options) {
+			new morpheus.stringTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+	  }
+  });
+  
+  this.add({
+	  name: 'PhosphoSitePlus',
+	  cb: function (options) {
+			new morpheus.phosphositeTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+	  }
+  });
+  
+  this.add({
+    name: 'Enrichr',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.enrichrTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    }
+  });
+  
+  this.add({
+    name: 'Reactome',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.reactomeTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    }
+  });
+  
+  this.add({
+    name: 'Calculate Enrichr Basal',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.enrichrBasalTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    }
+  });
+  
+  this.add({
+    name: 'Calculate Enrichr Subset',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.enrichrSubsetTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    }
+  });
+  
+  this.add({
+    name: 'Append Gene names',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.appendGenenameTool({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    }
+  });
+  
+  this.add({
+    name: 'Network Options',
+    ellipsis: true,
+    cb: function (options) {
+			new morpheus.NetworkOptions({
+				project: options.heatMap.getProject(),
+				heatmap: options.heatMap,
+				getVisibleTrackNames: _.bind(
+				options.heatMap.getVisibleTrackNames, options.heatMap)
+			});
+    },
+    icon: 'fa fa-cog'
+  });
+
   this.add({
     name: 'Zoom In',
     cb: function (options) {
@@ -18422,7 +18568,10 @@ morpheus.ActionManager = function () {
   [
     new morpheus.HClusterTool(), new morpheus.KMeansTool(), new morpheus.MarkerSelection(), new morpheus.NearestNeighbors(), new morpheus.AdjustDataTool(),
     new morpheus.CollapseDatasetTool(), new morpheus.CreateAnnotation(), new morpheus.SimilarityMatrixTool(), new morpheus.TransposeTool(), new morpheus.TsneTool(),
-    new morpheus.DevAPI()].forEach(function (tool) {
+    new morpheus.DevAPI(),
+	// by CY, 20171026
+	new morpheus.NetworkOptions()
+	].forEach(function (tool) {
     _this.add({
       ellipsis: true,
       name: tool.toString(),
@@ -25609,6 +25758,10 @@ morpheus.HeatMapToolBar = function (heatMap) {
     if (heatMap.options.menu.Tools) {
       createMenu('Tools', heatMap.options.menu.Tools);
     }
+	// by CY, 20171009
+	if (heatMap.options.menu.Network) {
+      createMenu('Network', heatMap.options.menu.Network);
+    }
     if (heatMap.options.menu.Help) {
       createMenu('Help', heatMap.options.menu.Help, '220px');
     }
@@ -27550,6 +27703,21 @@ morpheus.HeatMap = function (options) {
           ' Selected Columns',
           'Select All Columns',
           'Clear Selected Columns'],
+		// by CY, 20171009
+		Network: [
+		  'neo4j', 
+		  'STRING DB', 
+		  'PhosphoSitePlus',
+		  null,
+		  'Enrichr',
+		  'Reactome',
+		  null,
+		  'Calculate Enrichr Basal',
+		  'Calculate Enrichr Subset',
+		  null,
+		  'Append Gene names',
+		  null,
+		  'Network Options'],
         Help: [
           'Search Menus', null, 'Contact', 'Configuration', 'Tutorial', 'Source Code', null, 'Keyboard' +
           ' Shortcuts']
@@ -33674,8 +33842,7 @@ morpheus.Table = function (options) {
     }
 
   }
-}
-;
+};
 
 morpheus.Table.defaultRenderer = function (item, value) {
   if (value == null) {
@@ -38703,6 +38870,1796 @@ morpheus.SingleLinkage = function (nelements, distmatrix) {
     result2[i] = result[i];
   }
   return result2;
+};
+
+/*
+ * BELOW by CY, 2017/08/16
+ */
+morpheus.OldLab = function() {
+};
+
+/**
+ * Guess what column contains the useful ID's for network query.
+ * The first priority is "protein" and then "gene".
+ */
+morpheus.OldLab.guessProteinColumnName = function(rowMeta) {
+  var name = "";
+  var colCount = rowMeta.getMetadataCount();
+  
+  for (var i = 0 ; i < colCount ; i++) {
+    name = rowMeta.get(i).getName();
+	
+	if (name.toLowerCase().includes("protein"))
+	  return name;
+  }
+    
+  for (var i = 0 ; i < colCount ; i++) {
+    name = rowMeta.get(i).getName();
+	
+	if (name.toLowerCase().includes("gene"))
+	  return name;
+  }
+  
+  return undefined;
+};
+
+/**
+ * Enrich gene list by opening Enrichr website
+ */
+morpheus.OldLab.openEnrichr = function(id2gns) {
+	var form = document.createElement('form');
+	var listField = document.createElement('input');
+	var descField = document.createElement('input');
+	var gns = [];
+	
+	for (var id in id2gns)
+		gns = gns.concat(id2gns[id]);
+	
+	var list = gns.join("\n");
+  
+	//
+	form.setAttribute('method', 'post');
+	form.setAttribute('action', 'http://amp.pharm.mssm.edu/Enrichr/enrich');
+	form.setAttribute('target', '_blank');
+	form.setAttribute('enctype', 'multipart/form-data');
+	
+	// For gene list
+	listField.setAttribute('type', 'hidden');
+    listField.setAttribute('name', 'list');
+    listField.setAttribute('value', list);
+    form.appendChild(listField);
+
+	// For description
+    descField.setAttribute('type', 'hidden');
+    descField.setAttribute('name', 'description');
+    descField.setAttribute('value', '');
+    form.appendChild(descField);
+
+	// Append form, submit, then remove that form
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+};
+
+morpheus.OldLab.writeErrorMessage = function(msg, msgDiv) {
+	$('<h4 style=\"color:red;\">' + msg + '</h4>').appendTo(msgDiv);
+	$('#loading-modal').modal('show');
+}
+
+/**
+ * Add a list of genes to Enrichr for enrichment
+ */
+morpheus.OldLab.addListToEnrichr = function(idColName, id2gns, libName, project, msgDiv, termColName, scoreColName) {
+	$('<h4>Adding genes to Enrichr ...</h4>').appendTo(msgDiv);
+	
+	// Collect gene names
+	var gns = [];
+	
+	for (var id in id2gns)
+		gns = gns.concat(id2gns[id]);
+	
+	var list = gns.join("\n");
+
+	// Prepare form
+	var form = new FormData();
+	
+	form.append("list", list);
+	form.append("description", "auto submission");
+	
+	// Make request
+	var settings = {
+		"async": true,
+		"crossDomain": true,
+		"url": ENRICHR_ADD_LIST_SERVICE,
+		"method": "POST",
+		"headers": {
+			"cache-control": "no-cache"
+		},
+		"processData": false,
+		"contentType": false,
+		"mimeType": "multipart/form-data",
+		"data": form,
+		"success": function(data) {
+			var response = $.parseJSON(data);
+			var userListId = response["userListId"];
+			//var userListId = 6179377;
+			
+			$('<h4>  List ID = ' + userListId + '</h4>').appendTo(msgDiv);
+			
+			morpheus.OldLab.enrichByEnrichr(idColName, id2gns, libName, project, msgDiv, userListId, termColName, scoreColName);
+		},
+		"error": function(jqXHR, textStatus, errorThrown) {
+			morpheus.OldLab.writeErrorMessage("Enrichr ADD LIST ERROR: Failed to add gene list to Enrichr", msgDiv);
+			console.log(textStatus);
+		}
+	};
+	
+	$.ajax(settings);
+};
+
+/**
+ * The list of library names can be obtained by going to Enrichr website, 
+ * and then clicking the Libraries on the top of the home page.
+ */
+morpheus.OldLab.enrichByEnrichr = function(idColName, id2gns, libName, project, msgDiv, userListId, termColName, scoreColName) {
+	$('<h4>Enriching ...</h4>').appendTo(msgDiv);
+	
+	var enrichURL = "http://amp.pharm.mssm.edu/Enrichr/enrich?userListId=" + userListId + "&backgroundType=" + libName;
+	
+	var settings = {
+		"async": true,
+		"crossDomain": true,
+		"url": enrichURL,
+		"method": "GET",
+		"headers": {
+			"cache-control": "no-cache"
+		},
+		"success": function(data) {
+			var enriched = data[libName];
+			
+			$('<h4>Converting to gene map ...</h4>').appendTo(msgDiv);
+			
+			var map = morpheus.OldLab.enrichrToGeneMap(enriched);
+			
+			// associate to the data model
+			var _dataset = project.getSortedFilteredDataset();
+			var rowMeta = _dataset.getRowMetadata();
+			var id_vector = rowMeta.getByName(idColName);
+			var go_vector = rowMeta.add(termColName);
+			var score_vector = rowMeta.add(scoreColName);
+			var gns = null;
+			var data = null;
+			var id = null;
+			var size = _dataset.getRowCount();
+	
+			for (var i = 0 ; i < size ; i++) {
+				id = id_vector.getValue(i);
+				
+				if (id in id2gns) {
+					gns = id2gns[id];
+			
+					for (var gn = 0 ; gn < gns.length ; gn++) {
+						if (gns[gn] in map) {
+							data = map[gns[gn]];
+					
+							go_vector.setValue(i, data[0]);
+							score_vector.setValue(i, data[1]);
+						}
+					}
+				}
+			}
+	
+			//
+			project.trigger('trackChanged', {
+				vectors: [go_vector],
+				display: ['text'],
+				columns: false
+			});
+	
+			project.trigger('trackChanged', {
+				vectors: [score_vector],
+				display: ['text'],
+				columns: false
+			});
+	
+			$('<h4>Done</h4>').appendTo(msgDiv);
+			$('#loading-modal').modal('hide');
+		},
+		"error": function(jqXHR, textStatus, errorThrown) {
+			morpheus.OldLab.writeErrorMessage("Enrichr ENRICH ERROR: Failed to enrich list ID '" + userListId + "'", msgDiv);
+			console.log(textStatus);
+		}
+	};
+	
+	$.ajax(settings);
+};
+
+/**
+ * Convert the Enrichr's enrichment array to gene-data map.
+ * The data is an array of [Term name, Combined score]
+ */
+morpheus.OldLab.enrichrToGeneMap = function(enriched) {
+	var map = {};
+	var term = null;
+	var score = -1;
+	var gns = null;
+	
+	for (var i = 0 ; i < enriched.length ; i++) {
+		term = enriched[i][1];
+		score = enriched[i][4];
+		gns = enriched[i][5];
+		
+		for (var gn = 0 ; gn < gns.length ; gn++) {
+			if (!(gns[gn] in map)) {
+				map[gns[gn]] = [term, score];
+			}
+		}
+	}
+	
+	return map;
+};
+
+/**
+ Obsolete. For debug only.
+ */
+morpheus.OldLab.debugEnrichr = function(ids, id2gns, libName, project, msgDiv, userListId, termColName, scoreColName) {
+	//$('#loading-modal').modal('show');
+	$('#loading-modal').modal('hide');
+	
+	var size = ids.size();
+	
+	for (var i = 0 ; i < size ; i++) 
+		console.log(i + " => " + ids.getValue(i) + " <> " + ids.getValue(ids.indices[i]));
+	
+	// Start async calls
+	//morpheus.OldLab.addListToEnrichr(ids, id2gns, libName, project, msgDiv);
+	/*
+	var _dataset = project.getSortedFilteredDataset();
+	var go_vector = _dataset.getRowMetadata().add("Enrichr_Biological_Process");
+	var score_vector = _dataset.getRowMetadata().add("Enrichr_Score");
+	
+	go_vector.setValue(0, "test");
+	
+	project.trigger('trackChanged', {
+		vectors: [go_vector],
+		display: ['text'],
+		columns: false
+	});
+	
+	project.trigger('trackChanged', {
+		vectors: [score_vector],
+		display: ['text'],
+		columns: false
+	});*/
+};
+
+/**
+ * Dynamically get drug names from neo4j
+ */
+morpheus.OldLab.getNeo4jDrugNames = function() {
+	var names = [];
+	var settings = {
+		"async": false,
+		"crossDomain": true,
+		"url": NEO4J_DRUG_NAME_SERVICE,
+		"method": "POST",
+		"headers": {
+			"content-type": "application/x-www-form-urlencoded",
+			"cache-control": "no-cache"
+		}, 
+		"error": function(jqXHR, textStatus, errorThrown) {
+			console.log("ERROR: Cannot retrieve drug names from neo4j");
+		}
+	}
+	
+	$.ajax(settings).done(function(response) {
+		if (response.isSuccess)
+			names = response.data;
+		else
+			console.log("WARNING: No drug name retrieved");
+	});
+	
+	return names;
+};
+
+/**
+ * Enrich gene list by opening Reactome website
+ */
+morpheus.OldLab.openReactome = function(id2acc, msgDiv) {
+	var resource = "RESOURCE=UNIPROT";
+	var list = "# Header";
+	
+	for (var id in id2acc)
+		list += "\n" + id2acc[id];
+	
+	//var list = "# Header\n" + accs.join("\n");
+	// REF: https://reactome.org/AnalysisService/#/identifiers/getPostTextUsingPOST
+	var analysisURL = REACTOME_ANALYSIS_WEB_SERVICE + "/?" + resource;
+	
+	//
+	var settings = {
+		"async": true,
+		"crossDomain": true,
+		"url": analysisURL,
+		"method": "POST",
+		"headers": {
+			"content-type": "text/plain"
+		},
+		"data": list, 
+		"error": function(jqXHR, textStatus, errorThrown) {
+			$('<h4 style=\"color:red;\">Reactome Analysis Service ERROR: Please contact server administrator</h4>')
+					.appendTo(msgDiv);
+			$(jqXHR.responseText)
+					.appendTo(msgDiv);
+		}
+	}
+
+	$.ajax(settings).done(function(response) {
+		if (response.hasOwnProperty("summary")) {
+			if (response.summary.hasOwnProperty("token")) {
+				var token = response.summary.token;
+				var pathwayBrowserURL = REACTOME_PATHWAY_BROWSER + "&" + resource + "&ANALYSIS=" + token;
+				
+				window.open(pathwayBrowserURL, "_blank");
+			}
+			else
+				$('<h4>REACTOME ANALYSIS ERROR: missing summary.token in response</h4>')
+				.appendTo(msgDiv);
+		}
+		else 
+			$('<h4>REACTOME ANALYSIS ERROR: ' + response.messages + '</h4>')
+				.appendTo(msgDiv);
+	});
+};
+
+// Call web service to generate network
+morpheus.OldLab.callNetworkService = function(source, targetElem, serviceURL, json) {
+	$('#loading-modal').modal('show');		
+		
+	//
+	var settings = {
+		"async": true,
+		"crossDomain": true,
+		"url": serviceURL,
+			"method": "POST",
+			"headers": {
+				"content-type": "application/json",
+				"cache-control": "no-cache"
+			},
+			"processData": false,
+			"data": json,
+			"error": function(jqXHR, textStatus, errorThrown) {
+				$('<h4 style=\"color:red;\">neo4j SERVER ERROR: Please contact server administrator</h4>')
+					.appendTo(targetElem.$cyDiv);
+				$(jqXHR.responseText)
+					.appendTo(targetDiv);
+				$('#loading-modal').modal('hide');
+			}
+	};
+
+	$.ajax(settings).done(function(response) {
+		//console.log(response);
+		if (response.isSuccess) {	
+			if (response.nodes.length > 0) {
+				// Ready for Cytoscape.js
+				targetElem.cy = cytoscape({
+					container: targetElem.$cyDiv,
+					boxSelectionEnabled: false,
+					layout: { name: 'cose' },
+					style: [
+						{
+							selector: 'node',
+							style: {
+								'content': 'data(id)',
+								'text-opacity': 0.5,
+								'text-valign': 'center',
+								'text-halign': 'center',
+								'background-color': 'data(bgColor)',
+								'border-color': 'data(borderColor)',
+								'border-width': 5
+							}
+						},
+
+						{
+							selector: 'edge',
+							style: {
+								'width': 4,
+								'line-color': '#9dbaea',
+								'target-arrow-color': '#9dbaea',
+								'curve-style': 'bezier'
+							}
+						},
+
+						{
+							selector: 'edge[showArrow]',
+							style: {
+								'target-arrow-shape': 'triangle',
+								'label': 'data(label)'
+							}
+						}
+					],
+					elements: {
+						nodes: response.nodes,
+						edges: response.edges
+					},
+				});
+				
+				targetElem.cy.renderer().wheelSensitivity = 0.25;
+				
+				// Handle right-mouse-click
+				targetElem.cy.on('cxttap', 'node', function(e) {
+					// WARNING: metabolite URLs have not been tested thoroughly yet. 2017/08/25
+					var n = e.target;
+					var kegg = "http://www.genome.jp/dbget-bin/www_bget?cpd:"; // + id
+					var uniprot = "http://www.uniprot.org/uniprot/"; // + n.data().entry;
+					var pubchem = "https://pubchem.ncbi.nlm.nih.gov/compound/"; //Isopongaflavone
+					
+					if (n.data().type !== 'Metabolite')
+						window.open(uniprot + n.data().entry, '_blank');
+					else {
+						if (typeof n.data().keggID !== "undefined" && !isNaN(n.data().keggID))
+							window.open(kegg + n.data().keggID, '_blank');
+						else
+							window.open(pubchem + n.data().name, '_blank');
+					}
+				});
+				
+				//
+				var sidenav = $('<div class="sidenav">');
+				var closeBtn = $('<a href="javascript:void(0)" class="closebtn">&times;</a>');
+				var numNodes = $('<a>Nodes:  ' + response.nodes.length + '</a>');
+				var numEdges = $('<a>Edges:  ' + response.edges.length + '</a>');
+				var avgDegree = $('<a>Avg degree:  ' + ((response.edges.length * 2) / response.nodes.length).toFixed(2) + '</a>');
+				var savePNG = $('<a class="savebtn">Save to png</a>');
+				var saveCyJS = $('<a class="savebtn">Save to CyJS</a>');
+				
+				// organize elements
+				closeBtn.appendTo(sidenav);
+				numNodes.appendTo(sidenav);
+				numEdges.appendTo(sidenav);
+				avgDegree.appendTo(sidenav);
+				savePNG.appendTo(sidenav);
+				saveCyJS.appendTo(sidenav);
+				
+				sidenav.appendTo(targetElem.$cyDiv);
+				
+				// handles events
+				closeBtn.on('click', function() {
+					sidenav.css("width", "0");
+				});
+				
+				savePNG.on('click', function() {
+					// time stamp
+					var d = new Date();
+					var YY = d.getFullYear();
+					var MM = "0" + (d.getMonth() + 1);
+					var DD = "0" + d.getDate();
+					var hh = "0" + d.getHours();
+					var mm = "0" + d.getMinutes();
+					var ss = "0" + d.getSeconds();
+					var fn = source + "_" + 
+								YY + 
+								MM.substring(MM.length - 2, MM.length) + 
+								DD.substring(DD.length - 2, DD.length) + 
+								hh.substring(hh.length - 2, hh.length) + 
+								mm.substring(mm.length - 2, mm.length) + 
+								ss.substring(ss.length - 2, ss.length) +
+								".png";
+					//
+					var data = targetElem.cy.png();
+					
+					if (!window.ActiveXObject) {
+						savePNG.attr("href", data);
+						savePNG.attr("download", fn);
+					}
+					else if (!! window.ActiveXObject && document.execCommand) {
+						alert("Save function not supported by IE");
+						e.preventDefault();
+					}
+					else {
+						alert("Save function not supported");
+						e.preventDefault();
+					}
+				});
+				
+				saveCyJS.on('click', function() {
+					// time stamp
+					var d = new Date();
+					var YY = d.getFullYear();
+					var MM = "0" + (d.getMonth() + 1);
+					var DD = "0" + d.getDate();
+					var hh = "0" + d.getHours();
+					var mm = "0" + d.getMinutes();
+					var ss = "0" + d.getSeconds();
+					var fn = source + "_" + 
+								YY + 
+								MM.substring(MM.length - 2, MM.length) + 
+								DD.substring(DD.length - 2, DD.length) + 
+								hh.substring(hh.length - 2, hh.length) + 
+								mm.substring(mm.length - 2, mm.length) + 
+								ss.substring(ss.length - 2, ss.length) +
+								".cyjs";
+					//
+					var jsonObj = targetElem.cy.json();
+					
+					//
+					var jsonStr = JSON.stringify(jsonObj);
+					var dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(jsonStr);
+					
+					if (!window.ActiveXObject) {
+						saveCyJS.attr("href", dataUri);
+						saveCyJS.attr("download", fn);
+					}
+					else if (!! window.ActiveXObject && document.execCommand) {
+						alert("Save function not supported by IE");
+						e.preventDefault();
+					}
+					else {
+						alert("Save function not supported");
+						e.preventDefault();
+					}
+				});
+				
+				// Icon controls side nav
+				var sidenavIcon = $('<span style="font-size:30px;cursor:pointer">&#9776;</span>');
+				
+				//
+				sidenavIcon.css("position", "absolute");
+				sidenavIcon.css("top", "0");
+				sidenavIcon.css("left", "0");
+				
+				// handles events
+				sidenavIcon.on('click', function() {
+					sidenav.css("width", "250px");
+				});
+				
+				sidenavIcon.appendTo(targetElem.$cyDiv);
+				
+				// Hide the loading-modal after the layout is finished.
+				// Otherwise, we may see nothing (no network nor erro).
+				targetElem.cy.on('layoutstop', function(e) {
+					$('#loading-modal').modal('hide');
+				});
+			}
+			else {
+				$('<h4>No data matches request.</h4>')
+					.appendTo(targetElem.$cyDiv);
+				$('#loading-modal').modal('hide');
+			}
+		}
+		else {
+			$('<h4>' + response.msg + '</h4>')
+				.appendTo(targetElem.$cyDiv);
+			$('#loading-modal').modal('hide');
+		}
+	});
+};
+
+/**
+ * @param neo4jOptions.heatmap morpheus.HeatMap
+ * @param neo4jOptions.project
+ *            morpheus.Project
+ * @param neo4jOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.neo4jTool = function (neo4jOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = neo4jOptions.getVisibleTrackNames;
+  this.project = neo4jOptions.project;
+  this.heatmap = neo4jOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="cyNeo4jDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  this.cy = null;
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+  
+  this.nodeColors = {
+	  'Cyto'       : 'MediumSeaGreen',
+	  'PM'         : 'LightSkyBlue',
+	  'Nucl'       : 'IndianRed',
+	  'Metabolite' : 'Gold'
+  };
+  
+  this.$cyDiv = this.$el.find('[data-name=cyNeo4jDiv]');
+  
+  var dialogTitle = "neo4j Network, Drug = " + selectedDrug + ", Relationship = " + selectedRelationship + ", hops = " + maximumHops; 
+  var $dialog = $('<div style="background:white;" title="' + dialogTitle + '"></div>');
+  
+  this.$el.appendTo($dialog);
+  
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+		console.log("drag stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	},
+	
+	resizeStop: function(event, ui) {
+		console.log("resize stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.neo4jTool.prototype = {
+	draw: function () {
+		var _this = this;
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$cyNeo4jDiv);
+			return;
+		}
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$cyNeo4jDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = dataset.getRowCount() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = maximumHops;
+		query["threshold"] = 0;
+		query["drugName"] = selectedDrug;
+		query["relationshipType"] = selectedRelationship;
+		
+		var json = JSON.stringify(query);
+		
+		//console.log(sql);
+		morpheus.OldLab.callNetworkService("neo4j", _this, NEO4J_WEB_SERVICE, json);
+	}
+};
+
+/**
+ * @param stringOptions.heatmap morpheus.HeatMap
+ * @param stringOptions.project
+ *            morpheus.Project
+ * @param stringOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.stringTool = function (stringOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = stringOptions.getVisibleTrackNames;
+  this.project = stringOptions.project;
+  this.heatmap = stringOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="cyStringDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  this.cy = null;
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+  
+  
+  this.$cyDiv = this.$el.find('[data-name=cyStringDiv]');
+  
+  var dialogTitle = "STRING Network, Score > " + minSTRINGScore + ", hops = " + maximumHops;
+  var $dialog = $('<div style="background:white;" title="' + dialogTitle + '"></div>');
+  
+  this.$el.appendTo($dialog);
+  
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+		console.log("drag stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	},
+	
+	resizeStop: function(event, ui) {
+		console.log("resize stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.stringTool.prototype = {
+	draw: function () {
+		var _this = this;
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$cyStringDiv);
+			return;
+		}
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$cyStringDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = dataset.getRowCount() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = maximumHops;
+		query["threshold"] = minSTRINGScore;
+		query["drugName"] = selectedDrug;
+		query["relationshipType"] = selectedRelationship;
+		
+		var json = JSON.stringify(query);
+
+		// Prepare web service call
+		morpheus.OldLab.callNetworkService("STRING", _this, STRING_WEB_SERVICE, json);
+	}
+};
+
+/**
+ * @param phosphositeOptions.heatmap morpheus.HeatMap
+ * @param phosphositeOptions.project
+ *            morpheus.Project
+ * @param phosphositeOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.phosphositeTool = function (phosphositeOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = phosphositeOptions.getVisibleTrackNames;
+  this.project = phosphositeOptions.project;
+  this.heatmap = phosphositeOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="cyPhosphoIiteDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  this.cy = null;
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+  
+  this.$cyDiv = this.$el.find('[data-name=cyPhosphoIiteDiv]');
+  
+  var dialogTitle = "Kinase-Substrate Network, hops = " + maximumHops;
+  var $dialog = $('<div style="background:white;" title="' + dialogTitle + '"></div>');
+  
+  this.$el.appendTo($dialog);
+  
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+		console.log("drag stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	},
+	
+	resizeStop: function(event, ui) {
+		console.log("resize stopped");
+		
+		if (_this.cy != null)
+			_this.cy.resize();
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.phosphositeTool.prototype = {
+	draw: function () {
+		var _this = this;
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$cyPhosphoIiteDiv);
+			return;
+		}
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$cyPhosphoIiteDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = dataset.getRowCount() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+
+		//
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = maximumHops;
+		query["threshold"] = 0;
+		query["drugName"] = selectedDrug;
+		query["relationshipType"] = selectedRelationship;
+		
+		var json = JSON.stringify(query);
+		
+		// Prepare web service call
+		morpheus.OldLab.callNetworkService("KSR", _this, PHOSPHO_WEB_SERVICE, json);
+	}
+};
+
+/**
+ * @param enrichrOptions.heatmap morpheus.HeatMap
+ * @param enrichrOptions.project
+ *            morpheus.Project
+ * @param enrichrOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.enrichrTool = function (enrichrOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = enrichrOptions.getVisibleTrackNames;
+  this.project = enrichrOptions.project;
+  this.heatmap = enrichrOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="enrichrDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+    
+  this.$enrichrDiv = this.$el.find('[data-name=enrichrDiv]');
+  var $dialog = $('<div style="background:white;" title="Enrichr"></div>');
+  this.$el.appendTo($dialog);
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+	},
+	
+	resizeStop: function(event, ui) {
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.enrichrTool.prototype = {
+  draw: function () {
+		var _this = this;
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$enrichrDiv);
+			return;
+		}
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$enrichrDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = dataset.getRowCount() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		$('<h4>Number of Selected IDs = ' + selectedIDs.length + '</h4>')
+			.appendTo(_this.$enrichrDiv);
+			
+		// 
+		if (idColName.toLowerCase().includes("gene")) {
+			$('<h4>ID type = Gene</h4>')
+				.appendTo(_this.$enrichrDiv);
+				
+			morpheus.OldLab.openEnrichr(selectedIDs);
+		}
+		else {
+			$('<h4>ID type = Protein</h4>')
+				.appendTo(_this.$enrichrDiv);
+				
+			$('<h4>Converting to Gene names ...</h4>')
+				.appendTo(_this.$enrichrDiv);
+				
+			// Convert
+			var query = {}
+		
+			query["data"] = selectedIDs;
+			query["maxHops"] = 0;
+			query["threshold"] = 0;
+		
+			var json = JSON.stringify(query);
+			
+			//
+			var settings = {
+				"async": true,
+				"crossDomain": true,
+				"url": UNIPROT_TO_GENE_WEB_SERVICE,
+				"method": "POST",
+				"headers": {
+					"content-type": "application/json",
+					"cache-control": "no-cache"
+				},
+				"processData": false,
+				"data": json, 
+				"error": function(jqXHR, textStatus, errorThrown) {
+					$('<h4 style=\"color:red;\">UniProt Service ERROR: Please contact server administrator</h4>')
+							.appendTo(_this.$enrichrDiv);
+					$(jqXHR.responseText)
+							.appendTo(_this.$enrichrDiv);
+				}
+			}
+
+			$.ajax(settings).done(function(response) {
+				if (response.isSuccess) {	
+					if (response.numUniProtEntries > 0) {
+						// Ready for Enrichr
+						$('<h4>Number of Genes = ' + response.numUniProtEntries + '</h4>')
+							.appendTo(_this.$enrichrDiv);
+							
+						morpheus.OldLab.openEnrichr(response.id2gns);
+					}
+					else
+						$('<h4 style=\"color:red;\">WARNING: No gene name returned</h4>')
+							.appendTo(_this.$enrichrDiv);
+				}
+				else
+					$('<h4>' + response.msg + '</h4>')
+						.appendTo(_this.$enrichrDiv);
+			});
+		}
+	}
+};
+
+/**
+ * @param reactomeOptions.heatmap morpheus.HeatMap
+ * @param reactomeOptions.project
+ *            morpheus.Project
+ * @param reactomeOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.reactomeTool = function (reactomeOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = reactomeOptions.getVisibleTrackNames;
+  this.project = reactomeOptions.project;
+  this.heatmap = reactomeOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="reactomeDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+    
+  this.$reactomeDiv = this.$el.find('[data-name=reactomeDiv]');
+  var $dialog = $('<div style="background:white;" title="Reactome"></div>');
+  this.$el.appendTo($dialog);
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+	},
+	
+	resizeStop: function(event, ui) {
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.reactomeTool.prototype = {
+  draw: function () {
+		var _this = this;
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$reactomeDiv);
+			return;
+		}
+		
+		// Get selected IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$reactomeDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = dataset.getRowCount() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		$('<h4>Number of Selected IDs = ' + selectedIDs.length + '</h4>')
+			.appendTo(_this.$reactomeDiv);
+			
+		// 
+		$('<h4>ID type = Protein</h4>')
+			.appendTo(_this.$reactomeDiv);
+				
+		$('<h4>Converting to UniProt accessions ...</h4>')
+			.appendTo(_this.$reactomeDiv);
+				
+		// Convert
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = 0;
+		query["threshold"] = 0;
+		
+		var json = JSON.stringify(query);
+			
+		//
+		var settings = {
+			"async": true,
+			"crossDomain": true,
+			"url": UNIPROT_TO_ACCESSION_WEB_SERVICE,
+			"method": "POST",
+			"headers": {
+				"content-type": "application/json",
+				"cache-control": "no-cache"
+			},
+			"processData": false,
+			"data": json, 
+			"error": function(jqXHR, textStatus, errorThrown) {
+				$('<h4 style=\"color:red;\">UniProt Service ERROR: Please contact server administrator</h4>')
+						.appendTo(_this.$reactomeDiv);
+				$(jqXHR.responseText)
+						.appendTo(_this.$reactomeDiv);
+			}
+		}
+
+		$.ajax(settings).done(function(response) {
+			if (response.isSuccess) {	
+				if (response.numUniProtEntries > 0) {
+					// Ready for Enrichr
+					$('<h4>Number of Accessions = ' + response.numUniProtEntries + '</h4>')
+						.appendTo(_this.$reactomeDiv);
+					
+					for (var id in response.id2acc)
+						$('<h4>' + id + " => " + response.id2acc[id] + '</h4>').appendTo(_this.$reactomeDiv);
+							
+					morpheus.OldLab.openReactome(response.id2acc, _this.$reactomeDiv);
+				}
+				else
+					$('<h4 style=\"color:red;\">WARNING: No gene name returned</h4>')
+						.appendTo(_this.$reactomeDiv);
+			}
+			else
+				$('<h4>' + response.msg + '</h4>')
+					.appendTo(_this.$reactomeDiv);
+		});
+	}
+};
+
+/**
+ * @param enrichrBasalOptions.heatmap morpheus.HeatMap
+ * @param enrichrBasalOptions.project
+ *            morpheus.Project
+ * @param enrichrBasalOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.enrichrBasalTool = function (enrichrBasalOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = enrichrBasalOptions.getVisibleTrackNames;
+  this.project = enrichrBasalOptions.project;
+  this.heatmap = enrichrBasalOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="enrichrBasalDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+    
+  this.$enrichrBasalDiv = this.$el.find('[data-name=enrichrBasalDiv]');
+  var $dialog = $('<div style="background:white;" title="Enrichr Basal"></div>');
+  this.$el.appendTo($dialog);
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+	},
+	
+	resizeStop: function(event, ui) {
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.enrichrBasalTool.prototype = {
+	draw: function () {
+		$('#loading-modal').modal('show');
+		
+		var _this = this;
+		var defaultLibName = "GO_Biological_Process_2017b";
+		var dataset = this.project.getSortedFilteredDataset();
+		
+		this.dataset = dataset;
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$enrichrBasalDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = axisLabelVector.size() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		$('<h4>Number of Selected IDs = ' + selectedIDs.length + '</h4>')
+			.appendTo(_this.$enrichrBasalDiv);
+			
+		// 
+		$('<h4>Converting to Gene names ...</h4>')
+			.appendTo(_this.$enrichrBasalDiv);
+			
+		// Convert
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = 0;
+		query["threshold"] = 0;
+		
+		var json = JSON.stringify(query);
+		
+		//
+		var settings = {
+			"async": true,
+			"crossDomain": true,
+			"url": UNIPROT_TO_GENE_WEB_SERVICE,
+			"method": "POST",
+			"headers": {
+				"content-type": "application/json",
+				"cache-control": "no-cache"
+			},
+			"processData": false,
+			"data": json, 
+			"error": function(jqXHR, textStatus, errorThrown) {
+				$('<h4 style=\"color:red;\">UniProt Service ERROR: Please contact server administrator</h4>')
+						.appendTo(_this.$enrichrBasalDiv);
+				$(jqXHR.responseText)
+						.appendTo(_this.$enrichrBasalDiv);
+			}
+		}
+
+		$.ajax(settings).done(function(response) {
+			if (response.isSuccess) {	
+				if (response.numUniProtEntries > 0) {
+					// Ready for Enrichr
+					$('<h4>Number of Genes = ' + response.numUniProtEntries + '</h4>')
+						.appendTo(_this.$enrichrBasalDiv);
+						
+					morpheus.OldLab.addListToEnrichr(idColName, response.id2gns, defaultLibName, _this.project, _this.$enrichrBasalDiv, "Enrichr_Biological_Process", "Enrichr_Score");
+				}
+				else
+					$('<h4 style=\"color:red;\">WARNING: No gene name returned</h4>')
+						.appendTo(_this.$enrichrBasalDiv);
+			}
+			else {
+				$('<h4>' + response.msg + '</h4>')
+					.appendTo(_this.$enrichrBasalDiv);
+				$('#loading-modal').modal('hide');
+			}
+		});
+	}
+};
+
+/**
+ * @param enrichrSubsetOptions.heatmap morpheus.HeatMap
+ * @param enrichrSubsetOptions.project
+ *            morpheus.Project
+ * @param enrichrSubsetOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.enrichrSubsetTool = function (enrichrSubsetOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = enrichrSubsetOptions.getVisibleTrackNames;
+  this.project = enrichrSubsetOptions.project;
+  this.heatmap = enrichrSubsetOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="enrichrSubsetDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+    
+  this.$enrichrSubsetDiv = this.$el.find('[data-name=enrichrSubsetDiv]');
+  var $dialog = $('<div style="background:white;" title="Enrichr Subset"></div>');
+  this.$el.appendTo($dialog);
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+	},
+	
+	resizeStop: function(event, ui) {
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.enrichrSubsetTool.prototype = {
+	draw: function () {
+		$('#loading-modal').modal('show');
+		
+		var _this = this;
+		var defaultLibName = "GO_Biological_Process_2017b";
+		var dataset = this.project.getSelectedDataset({
+			emptyToAll: false
+		});
+		
+		this.dataset = dataset;
+		
+		if (dataset.getRowCount() === 0) {
+			$('<h4>Please select rows in the heat map.</h4>')
+			.appendTo(_this.$enrichrSubsetDiv);
+			return;
+		}
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$enrichrSubsetDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = axisLabelVector.size() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		$('<h4>Number of Selected IDs = ' + selectedIDs.length + '</h4>')
+			.appendTo(_this.$enrichrSubsetDiv);
+			
+		// 
+		$('<h4>Converting to Gene names ...</h4>')
+			.appendTo(_this.$enrichrSubsetDiv);
+			
+		// Convert
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = 0;
+		query["threshold"] = 0;
+		
+		var json = JSON.stringify(query);
+		
+		//
+		var settings = {
+			"async": true,
+			"crossDomain": true,
+			"url": UNIPROT_TO_GENE_WEB_SERVICE,
+			"method": "POST",
+			"headers": {
+				"content-type": "application/json",
+				"cache-control": "no-cache"
+			},
+			"processData": false,
+			"data": json, 
+			"error": function(jqXHR, textStatus, errorThrown) {
+				$('<h4 style=\"color:red;\">UniProt Service ERROR: Please contact server administrator</h4>')
+						.appendTo(_this.$enrichrSubsetDiv);
+				$(jqXHR.responseText)
+						.appendTo(_this.$enrichrSubsetDiv);
+			}
+		}
+
+		$.ajax(settings).done(function(response) {
+			if (response.isSuccess) {	
+				if (response.numUniProtEntries > 0) {
+					// Ready for Enrichr
+					$('<h4>Number of Genes = ' + response.numUniProtEntries + '</h4>')
+						.appendTo(_this.$enrichrSubsetDiv);
+						
+					morpheus.OldLab.addListToEnrichr(idColName, response.id2gns, defaultLibName, _this.project, _this.$enrichrSubsetDiv, "Subset_Biological_Process", "Subset_Score");
+					//morpheus.OldLab.debugEnrichr(idColName, response.id2gns, defaultLibName, _this.project, _this.$enrichrBasalDiv, "Enrichr_Biological_Process", "Enrichr_Score");
+				}
+				else
+					$('<h4 style=\"color:red;\">WARNING: No gene name returned</h4>')
+						.appendTo(_this.$enrichrSubsetDiv);
+			}
+			else
+				$('<h4>' + response.msg + '</h4>')
+					.appendTo(_this.$enrichrSubsetDiv);
+		});
+	}
+};
+
+/**
+ * @param appendGenenameOptions.heatmap morpheus.HeatMap
+ * @param appendGenenameOptions.project
+ *            morpheus.Project
+ * @param appendGenenameOptions.getVisibleTrackNames
+ *            {Function}
+ */
+morpheus.appendGenenameTool = function (appendGenenameOptions) {
+  var _this = this;
+  this.getVisibleTrackNames = appendGenenameOptions.getVisibleTrackNames;
+  this.project = appendGenenameOptions.project;
+  this.heatmap = appendGenenameOptions.heatmap;
+  var project = this.project;
+  this.$el = $(
+      '<div class="container-fluid" style="height:100%">'
+    + '  <div class="row" style="height:100%">'
+    + '    <div class="col-xs-10" style="height:100%;width:100%">'
+	+ '      <div style="position:relative;height:100%;width:100%;overflow-x:hidden;" data-name="appendGenenameDiv"></div>'
+	+ '    </div>'
+    + '  </div>'
+	+ '</div>');
+
+  this.tooltip = [];
+  
+  var draw = function () {
+    _.debounce(_this.draw(), 100);
+  };
+    
+  this.$appendGenenameDiv = this.$el.find('[data-name=appendGenenameDiv]');
+  var $dialog = $('<div style="background:white;" title="Append Gene name column"></div>');
+  this.$el.appendTo($dialog);
+  $dialog.dialog({
+    dialogClass: 'morpheus',
+    close: function (event, ui) {
+      _this.$el.empty();
+    },
+
+    resizable: true,
+    height: 600,
+    width: 900,
+	
+	dragStop: function(event, ui) {
+	},
+	
+	resizeStop: function(event, ui) {
+	}
+  });
+  
+  this.$dialog = $dialog;
+  this.draw();
+};
+
+morpheus.appendGenenameTool.prototype = {
+	draw: function () {
+		$('#loading-modal').modal('show');
+		
+		var _this = this;
+		var dataset = this.project.getSortedFilteredDataset();
+		
+		this.dataset = dataset;
+		
+		// Get protein IDs
+		var heatmap = this.heatmap;
+		var rowMeta = dataset.getRowMetadata();
+		var idColName = morpheus.OldLab.guessProteinColumnName(rowMeta);
+		var axisLabelVector;
+		
+		if (typeof idColName !== "undefined") {
+			axisLabelVector = dataset.getRowMetadata().getByName(idColName);
+		}
+		else {
+			$('<h4>No protein/gene column is defined. Please contact server administrator.</h4>')
+					.appendTo(_this.$appendGenenameDiv);
+				return;
+		}
+		
+		//
+		var selectedIDs = [];
+		
+		for (var r = 0, rows = axisLabelVector.size() ; r < rows ; r++) {
+			var id = axisLabelVector.getValue(r);
+			
+			id = id.split(/[ ;]+/)[0].split('-')[0];
+			
+			selectedIDs.push(id);
+		}
+		
+		//
+		$('<h4>Number of Selected IDs = ' + selectedIDs.length + '</h4>')
+			.appendTo(_this.$appendGenenameDiv);
+			
+		// 
+		$('<h4>Converting to Gene names ...</h4>')
+			.appendTo(_this.$appendGenenameDiv);
+			
+		// Convert
+		var query = {}
+		
+		query["data"] = selectedIDs;
+		query["maxHops"] = 0;
+		query["threshold"] = 0;
+		
+		var json = JSON.stringify(query);
+		
+		//
+		var settings = {
+			"async": true,
+			"crossDomain": true,
+			"url": UNIPROT_TO_GENE_WEB_SERVICE,
+			"method": "POST",
+			"headers": {
+				"content-type": "application/json",
+				"cache-control": "no-cache"
+			},
+			"processData": false,
+			"data": json, 
+			"error": function(jqXHR, textStatus, errorThrown) {
+				$('<h4 style=\"color:red;\">UniProt Service ERROR: Please contact server administrator</h4>')
+						.appendTo(_this.$appendGenenameDiv);
+				$(jqXHR.responseText)
+						.appendTo(_this.$appendGenenameDiv);
+			}
+		}
+
+		$.ajax(settings).done(function(response) {
+			if (response.isSuccess) {	
+				if (response.numUniProtEntries > 0) {
+					// Ready for conversion
+					$('<h4>Number of Genes = ' + response.numUniProtEntries + '</h4>')
+						.appendTo(_this.$appendGenenameDiv);
+					
+					//
+					// associate to the data model
+					var _dataset = _this.project.getSortedFilteredDataset();
+					var rowMeta = _dataset.getRowMetadata();
+					var id_vector = rowMeta.getByName(idColName);
+					var gn_vector = rowMeta.add("Gene_name");
+					var gns = null;
+					var data = null;
+					var id = null;
+					var size = _dataset.getRowCount();
+	
+					for (var i = 0 ; i < size ; i++) {
+						id = id_vector.getValue(i);
+				
+						if (id in response.id2gns) {
+							gn_vector.setValue(i, response.id2gns[id]);
+						}
+					}
+	
+					//
+					_this.project.trigger('trackChanged', {
+						vectors: [gn_vector],
+						display: ['text'],
+						columns: false
+					});
+	
+					$('<h4>Done</h4>').appendTo(_this.$appendGenenameDiv);
+					$('#loading-modal').modal('hide');
+					
+					//morpheus.OldLab.addListToEnrichr(idColName, response.id2gns, defaultLibName, _this.project, _this.$appendGenenameDiv, "Enrichr_Biological_Process", "Enrichr_Score");
+				}
+				else
+					$('<h4 style=\"color:red;\">WARNING: No gene name returned</h4>')
+						.appendTo(_this.$appendGenenameDiv);
+			}
+			else {
+				$('<h4>' + response.msg + '</h4>')
+					.appendTo(_this.$appendGenenameDiv);
+				$('#loading-modal').modal('hide');
+			}
+		});
+	}
+};
+
+/**
+ */
+morpheus.NetworkOptions = function () {
+};
+
+morpheus.NetworkOptions.prototype = {
+  toString: function () {
+    return 'Network Options';
+  },
+  gui: function () {
+    return [{
+      name: 'drug_name',
+      value: selectedDrug,
+      type: 'bootstrap-select',
+	  options: morpheus.OldLab.getNeo4jDrugNames(),
+      required: true,
+      help: 'Limit the nodes of neo4j network to the selected drug'
+    }, {
+      name: 'relationship_type',
+      value: selectedRelationship,
+      type: 'bootstrap-select',
+	  options: ['COSINE|ANTICOSINE', 'CLUSTERS', 'LAG_CAUSAL'],
+      required: true,
+      help: 'Limit the relationships of neo4j network to the selected type'
+    }, {
+      name: 'STRING_score',
+      value: minSTRINGScore, //'700',
+      type: 'text',
+      required: true,
+      help: 'Minimum required STRING relationship score [700-1000]'
+    }, {
+	  name: 'Max_distance',
+      type: 'bootstrap-select',
+	  value: maximumHops,
+      options: ['1', '2', '3', '4', '5'],
+      required: true,
+      help: 'Maxmum distance betweeen 2 selected entries'
+	}];
+  },
+  execute: function (options) {
+	selectedDrug = options.input.drug_name;
+	  
+	//
+	selectedRelationship = options.input.relationship_type;
+	  
+	//
+    var score = options.input.STRING_score;
+   
+	if (score >= 700 && score <= 1000)
+	  minSTRINGScore = score;
+	else
+	  window.alert("ERROR: Score range is [700,1000]");
+	
+	//
+	var distance = options.input.Max_distance;
+	
+	maximumHops = distance;
+  }
 };
 
 })(typeof window !== 'undefined' ? window : this);
